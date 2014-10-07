@@ -14,8 +14,6 @@ export default class MyDirective {
 		this.compile = $compile;
 
 		this.hihi = 'huhu';
-
-		console.log(this.$scope)
 	}
 
 	link (scope, element, attributes, parentMyDirective) {

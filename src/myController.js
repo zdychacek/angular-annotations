@@ -1,9 +1,8 @@
-import { Inject, InjectAsProperty, Controller, Scope } from './annotations';
+import { Controller, Scope } from './annotations';
+import BaseController from './baseController';
 
-@Inject('MyService', '$timeout')
-@InjectAsProperty('$scope', '$compile')
 @Controller('MyController')
-export default class MyController {
+export default class MyController extends BaseController {
 	constructor (MyService, $timeout) {
 		this.dataSource = MyService;
 		this.$timeout = $timeout;
