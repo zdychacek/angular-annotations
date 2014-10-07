@@ -67,10 +67,10 @@ export function getPreparedConstructor (controller) {
 
 	constructor.push((...deps) => {
 		var proto = controller.prototype;
-		var scopes = deps.filter(dep => '$$watchers' in dep);
+		var scopes = deps.filter(dep => '$$watchers' in dep && dep.parent != null);
 
 		if (scopes.length > 1) {
-			throw new Error(`You have injected $scope multiple times (count: ${scopes.length}).`);
+			throw new Error(`You have injected $scope multiple times (count: ${scopes.length}) into '${controller}'.`);
 		}
 
 		// @InjectAsProperty
@@ -214,7 +214,7 @@ export function registerController (module, controller) {
 	var ControllerAnnotation = annotations[0];
 
 	if (!ControllerAnnotation) {
-		throw new Error(`No Controller annotation on class ${filter}.`);
+		throw new Error(`No Controller annotation on class ${controller}.`);
 	}
 
 	resolveModule(module).controller(ControllerAnnotation.name, getOverwrittenConstructor(controller));
