@@ -67,7 +67,7 @@ export function getPreparedConstructor (controller) {
 
 	constructor.push((...deps) => {
 		var proto = controller.prototype;
-		var scopes = deps.filter(dep => '$$watchers' in dep && dep.parent != null);
+		var scopes = deps.filter(dep => '$$watchers' in dep && dep.$parent != null);
 
 		if (scopes.length > 1) {
 			throw new Error(`You have injected $scope multiple times (count: ${scopes.length}) into '${controller}'.`);
