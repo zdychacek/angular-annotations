@@ -6,7 +6,7 @@
 <body ng-controller="MyController">
 	<my-directive text="huhu"></my-directive>
 
-	<p>{{data}}</p>
+	<p>{{data | makeUppercase }}</p>
 
 	<button ng-click="getData()">Get data</button>
 

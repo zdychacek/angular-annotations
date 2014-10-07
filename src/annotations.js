@@ -21,7 +21,7 @@ export class Service {
 	constructor (name, type = 'factory') {
 		this.name = name;
 
-		if (!['factory', 'service', 'provider', 'value', 'constant'].contains(type)) {
+		if (!['factory', 'service', 'provider', 'value', 'constant'].indexOf(type) < 0) {
 			throw new Error(`Bad Service annotation type ${type}.`);
 		}
 
@@ -73,15 +73,8 @@ export class Parser {
 
 	getAnnotations (annotationConstructor) {
 		var annotations = this.getAllAnnotations();
-		var result = [];
 
-		for (var annotation of annotations) {
-			if (annotation instanceof annotationConstructor) {
-				result.push(annotation);
-			}
-		}
-
-		return result;
+		return annotations.filter(annotation => annotation instanceof annotationConstructor);
 	}
 
 	extractAnnotations (constructor) {
