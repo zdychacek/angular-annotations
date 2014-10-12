@@ -7,10 +7,10 @@ var notify = require('gulp-notify');
 var uglify = require('gulp-uglify');
 var buffer = require('vinyl-buffer');
 var es6ify = require('es6ify');
-var flo = require('fb-flo');
 var fs = require('fs');
 var connect = require('gulp-connect');
 var rimraf = require('gulp-rimraf');
+var watch = require('gulp-watch');
 
 var appDir = './app';
 var srcDir = appDir + '/src';
@@ -59,10 +59,14 @@ function buildScript (file, watch, minify) {
 		if (minify) {
 			stream = stream
 				.pipe(buffer())
-				.pipe(uglify())
+				.pipe(uglify());
 		}
 			
-		return stream.pipe(gulp.dest(distDir));
+		stream = stream
+			.pipe(gulp.dest(distDir))
+			.pipe(connect.reload());
+
+		return stream;
 	}
 
 	return rebundle();
@@ -71,40 +75,24 @@ function buildScript (file, watch, minify) {
 gulp.task('connect', function () {
 	return connect.server({  
 		root: ['app'],
-		port: 8888
+		port: 8888,
+		livereload: true
 	});
 });
 
-gulp.task('flo', function () {
-	flo(
-		appDir,
-		{
-				port: 5888,
-				host: '0.0.0.0',
-				glob: [
-					'src/**/*.js',
-					'**/*.html'
-				]
-		},
-		function (filepath, callback) {
-				gutil.log('Reloading \'' + gutil.colors.cyan(filepath) + '\' with flo...');
-
-				callback({
-					resourceURL: '/' + filepath,
-					reload: filepath.match(/\.(js|html)$/)
-				})
-		});
-});
-
-gulp.task('clean', function () {
+gulp.task('clean:dist', function () {
 	return gulp.src(distDir, { read: false })
 		.pipe(rimraf({ force: true }));
 });
 
-gulp.task('build', ['clean'], function () {
+gulp.task('build', ['clean:dist'], function () {
 	return buildScript('main.js', false, true);
 });
 
-gulp.task('default', ['clean', 'connect', 'flo'], function () {
+gulp.task('default', ['clean:dist', 'connect'], function () {
+	//watch(appDir + '/**/*.html', function () {
+	//	connect.reload();
+	//});
+
 	return buildScript('main.js', true, true);
 });

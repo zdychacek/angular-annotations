@@ -18,7 +18,13 @@ export class Controller {
 }
 
 export class Service {
-	constructor (name, type = 'factory') {
+	constructor (name, type) {
+		this.name = name;
+	}
+}
+
+export class Factory {
+	constructor (name, type) {
 		this.name = name;
 	}
 }
@@ -71,11 +77,15 @@ export class Parser {
 		return annotations.filter(annotation => annotation instanceof annotationConstructor);
 	}
 
+	hasAnnotation (annotationConstructor) {
+		return this.getAnnotations(annotationConstructor).length;
+	}
+
 	extractAnnotations (constructor) {
 		var annotations = constructor.annotations || [];
 		var parent = Object.getPrototypeOf(constructor);
 
-		if (typeof parent === 'function') {
+		if (angular.isFunction(parent)) {
 			annotations = annotations.concat(this.extractAnnotations(parent));
 		}
 

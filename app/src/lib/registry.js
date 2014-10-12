@@ -1,6 +1,7 @@
 import {
 	Controller,
 	Service,
+	Factory,
 	Filter,
 	Parser,
 	Scope,
@@ -18,96 +19,81 @@ function resolveModule (module) {
 	}
 }
 
-function isUpperCase (char) {
-	return char.toUpperCase() === char;
+function filterScopes (deps) {
+	return deps.filter(dep => '$$watchers' in dep && dep.$parent != null);
 }
 
-function isClass (clsOrFunction) {
-	if (clsOrFunction.name) {
-		return isUpperCase(clsOrFunction.name.charAt(0));
-	}
-
-	return Object.keys(clsOrFunction.prototype).length > 0;
-}
-
-function getOverwrittenConstructor (controller) {
-	var constructor = getInjectedConstructor(controller);
-	var diFunction = constructor[constructor.length - 1];
-	var overwrittenConstructor = constructor;
-
-	overwrittenConstructor[overwrittenConstructor.length - 1] = function (...deps) {
-		return diFunction(...deps);
-	};
-
-	return overwrittenConstructor;
-}
-
-export function getInjectedConstructor (controller) {
-	var parser = new Parser(controller);
+export function getCtorForFunctionInjection (fn) {
+	var parser = new Parser(fn);
 	var annotations = parser.getAnnotations(Inject).reverse();
-	var $inject = [];
-	var isFn = !isClass(controller);
+	var constructor = [];
 
+	// merge all annotations
 	for (var annotation of annotations) {
-		$inject = $inject.concat(annotation.deps);
+		constructor = constructor.concat(annotation.deps);
 	}
 
-	var injectsViaInjectCount = $inject.length;
-	var injectAsProperty = parser.getAnnotations(InjectAsProperty);
-
-	if (injectAsProperty.length && isFn) {
+	// make check if function is not annotated with InjectAsProperty
+	if (parser.hasAnnotation(InjectAsProperty)) {
 		throw new Error('Cannot annotate function with @InjectAsProperty.');
 	}
 
-	var propertyMap = new Map();
-	
-	// if is class, process @InjectAsProperty annotations
-	if (!isFn) {	
-		for (var annotation of injectAsProperty) {
-			annotation.deps.forEach(depName => {
-				$inject.push(depName);
-				propertyMap.set(depName, $inject.length - 1);
-			});
-		}
-	}
-
-	if (!injectAsProperty.length && !annotations.length) {
+	// there are no annotations - do not continue
+	if (!annotations.length) {
 		return false;
 	}
 
-	var constructor = $inject;
+	constructor.push((...deps) => fn(...deps));
+
+	return constructor;
+}
+
+export function getCtorForClassInjection (controller) {
+	var parser = new Parser(controller);
+	var annotations = parser.getAnnotations(Inject).reverse();
+	var constructor = [];
+
+	for (var annotation of annotations) {
+		constructor = constructor.concat(annotation.deps);
+	}
+
+	var injectsViaInjectCount = constructor.length;
+	var injectAsProperty = parser.getAnnotations(InjectAsProperty);
+	var propertyMap = new Map();
+	
+	// process @InjectAsProperty annotations
+	for (var annotation of injectAsProperty) {
+		annotation.deps.forEach(depName => {
+			constructor.push(depName);
+			propertyMap.set(depName, constructor.length - 1);
+		});
+	}
+
+	if (!constructor.length) {
+		return false;
+	}
 
 	constructor.push((...deps) => {
-		var scopes = deps.filter(dep => '$$watchers' in dep && dep.$parent != null);
+		var scopes = filterScopes(deps);
 		var proto = controller.prototype;
 
 		if (scopes.length > 1) {
 			throw new Error(`You have injected $scope multiple times (count: ${scopes.length}) into '${controller}'.`);
 		}
 
-		// if is class
-		if (!isFn) {
-			// @InjectAsProperty
-			for (var [ name, position ] of propertyMap.entries()) {
-				proto[name] = deps[position];
-			}
+		// @InjectAsProperty
+		for (var [ name, position ] of propertyMap.entries()) {
+			proto[name] = deps[position];
 		}
 
 		// @Inject to constructor
 		var args = deps.slice(0, injectsViaInjectCount);
-		var ctrl = null;
-
-		if (isFn) {
-			ctrl = controller(...args);
-		}
-		else {
-			ctrl = new controller(...args);
-		}
+		var ctrl = new controller(...args);
 
 		var scope = scopes[0];
 
 		// @Scope methods
-		if (!isFn && scope) {
+		if (scope) {
 			for (var methodName in proto) {
 				var method = proto[methodName];
 
@@ -134,22 +120,15 @@ export function getInjectedConstructor (controller) {
 	return constructor;
 }
 
-/**
- * Registers a new angular filter.
- *
- * @param  module created with angular.module()
- * @param  {Function} filter
- */
 export function registerFilter (module, filter) {
 	var parser = new Parser(filter);
-	var annotations = parser.getAnnotations(Filter);
-	var FilterAnnotation = annotations[0];
+	var FilterAnnotation = parser.getAnnotations(Filter)[0];
 
 	if (!FilterAnnotation) {
 		throw new Error(`No Filter annotations on class ${filter}.`);
 	}
 
-	var constructor = getInjectedConstructor(filter);
+	var constructor = getCtorForClassInjection(filter);
 
 	if (!constructor) {
 		constructor = function () {
@@ -183,7 +162,7 @@ export function registerDirective (module, controller) {
 		throw new Error(`No Directive annotation on class ${controller}.`);
 	}
 
-	var constructor = getInjectedConstructor(controller);
+	var constructor = getCtorForClassInjection(controller);
 
 	if (!constructor) constructor = controller;
 
@@ -232,24 +211,66 @@ export function registerDirective (module, controller) {
 
 export function registerController (module, controller) {
 	var parser = new Parser(controller);
-	var annotations = parser.getAnnotations(Controller);
-	var ControllerAnnotation = annotations[0];
+	var ControllerAnnotation = parser.getAnnotations(Controller)[0];
 
 	if (!ControllerAnnotation) {
-		throw new Error(`No Controller annotation on class ${controller}.`);
+		throw new Error(`No Controller annotation on ${controller}.`);
 	}
 
-	resolveModule(module).controller(ControllerAnnotation.name, getOverwrittenConstructor(controller));
+	resolveModule(module).controller(ControllerAnnotation.name, getCtorForClassInjection(controller));
 }
 
 export function registerService (module, service) {
 	var parser = new Parser(service);
-	var annotations = parser.getAnnotations(Service);
-	var ServiceAnnotation = annotations[0];
+	var ServiceAnnotation = parser.getAnnotations(Service)[0];
 
 	if (!ServiceAnnotation) {
-		throw new Error(`No Service annotation on class ${service}.`);
+		throw new Error(`No Service annotation on ${service}.`);
 	}
 
-	resolveModule(module).service(ServiceAnnotation.name, getOverwrittenConstructor(service));
+	resolveModule(module).service(ServiceAnnotation.name, getCtorForClassInjection(service));
+}
+
+export function registerFactory (module, factory) {
+	var parser = new Parser(factory);
+	var FactoryAnnotation = parser.getAnnotations(Factory)[0];
+
+	if (!FactoryAnnotation) {
+		throw new Error(`No Factory annotation on ${factory}.`);
+	}
+
+	resolveModule(module).factory(FactoryAnnotation.name, getCtorForFunctionInjection(factory));
+}
+
+function registerOne (module, controller) {
+	var parser = new Parser(controller);
+
+	if (parser.hasAnnotation(Directive)) {
+		registerDirective(module, controller);
+	}
+	else if (parser.hasAnnotation(Controller)) {
+		registerController(module, controller);
+	}
+	else if (parser.hasAnnotation(Service)) {
+		registerService(module, controller);
+	}
+	else if (parser.hasAnnotation(Factory)) {
+		registerFactory(module, controller);
+	}
+	else if (parser.hasAnnotation(Filter)) {
+		registerFilter(module, controller);
+	}
+	else {
+		throw new Error('Missing annotation.');
+	}
+}
+
+export function register (module, controllers) {
+	if (!Array.isArray(controllers)) {
+		controllers = [ controllers ];
+	}
+
+	for (var ctrl of controllers) {
+		registerOne(module, ctrl);
+	}
 }

@@ -1,4 +1,4 @@
-import { Inject, InjectAsProperty, Filter } from './annotations';
+import { Inject, InjectAsProperty, Filter } from './lib/annotations';
 
 @Filter('makeUppercase')
 export default class MakeUppercase {

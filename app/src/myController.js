@@ -1,13 +1,16 @@
-import { Controller, Scope } from './annotations';
+import { Controller, Scope, Inject } from './lib/annotations';
 import BaseController from './baseController';
 
+@Inject('MyFactory')
 @Controller('MyController')
 export default class MyController extends BaseController {
-	constructor (MyService, $timeout) {
+	constructor (MyService, $timeout, MyFactory) {
 		this.dataSource = MyService;
 		this.$timeout = $timeout;
 
 		this.$scope.data = 'none';
+
+		console.log(MyFactory.data);
 	}
 
 	@Scope
@@ -15,5 +18,3 @@ export default class MyController extends BaseController {
 		this.$timeout(() => this.$scope.data = this.dataSource.getInfo(), 500);
 	}
 }
-
-console.log('huhu');

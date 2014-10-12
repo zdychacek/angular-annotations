@@ -1,4 +1,4 @@
-import { Inject, InjectAsProperty, Controller } from './annotations';
+import { Inject, InjectAsProperty, Controller } from './lib/annotations';
 
 @Inject('MyService', '$timeout')
 @InjectAsProperty('$compile', '$scope')

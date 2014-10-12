@@ -1,4 +1,4 @@
-import { Inject, InjectAsProperty, Directive, Scope } from './annotations';
+import { Inject, InjectAsProperty, Directive, Scope } from './lib/annotations';
 
 @Inject('$compile', '$http')
 @InjectAsProperty('$scope', '$q')

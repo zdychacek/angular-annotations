@@ -1,19 +1,11 @@
-import {
-	registerDirective,
-	registerController,
-	registerFilter,
-	registerService,
-	registerControllerDecorator
-} from './registry';
+import { register } from './lib/registry';
 
 import MyDirective from './myDirective';
 import MyController from './myController';
 import MyFilter from './myFilter';
 import MyService from './myService';
+import MyFactory from './myFactory';
 
 var myApp = angular.module('myApp', []);
 
-registerDirective(myApp, MyDirective);
-registerController(myApp, MyController);
-registerFilter(myApp, MyFilter);
-registerService(myApp, MyService);
+register(myApp, [ MyDirective, MyController, MyFilter, MyService, MyFactory ]);

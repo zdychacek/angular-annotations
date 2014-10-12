@@ -1,4 +1,4 @@
-import { InjectAsProperty, Service } from './annotations';
+import { InjectAsProperty, Service } from './lib/annotations';
 
 var data = Symbol();
 
