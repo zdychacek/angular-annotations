@@ -5,6 +5,7 @@ import {
 	Filter,
 	Parser,
 	Scope,
+	Config,
 	Directive,
 	Inject,
 	InjectAsProperty 
@@ -122,7 +123,7 @@ export function getCtorForClassInjection (controller) {
 
 export function registerFilter (module, filter) {
 	var parser = new Parser(filter);
-	var FilterAnnotation = parser.getAnnotations(Filter)[0];
+	var FilterAnnotation = parser.getAnnotation(Filter);
 
 	if (!FilterAnnotation) {
 		throw new Error(`No Filter annotations on class ${filter}.`);
@@ -155,8 +156,7 @@ export function registerFilter (module, filter) {
 
 export function registerDirective (module, controller) {
 	var parser = new Parser(controller);
-	var annotations = parser.getAnnotations(Directive);
-	var DirectiveAnnotation = annotations[0];
+	var DirectiveAnnotation = parser.getAnnotation(Directive);
 
 	if (!DirectiveAnnotation) {
 		throw new Error(`No Directive annotation on class ${controller}.`);
@@ -211,7 +211,7 @@ export function registerDirective (module, controller) {
 
 export function registerController (module, controller) {
 	var parser = new Parser(controller);
-	var ControllerAnnotation = parser.getAnnotations(Controller)[0];
+	var ControllerAnnotation = parser.getAnnotation(Controller);
 
 	if (!ControllerAnnotation) {
 		throw new Error(`No Controller annotation on ${controller}.`);
@@ -222,7 +222,7 @@ export function registerController (module, controller) {
 
 export function registerService (module, service) {
 	var parser = new Parser(service);
-	var ServiceAnnotation = parser.getAnnotations(Service)[0];
+	var ServiceAnnotation = parser.getAnnotation(Service);
 
 	if (!ServiceAnnotation) {
 		throw new Error(`No Service annotation on ${service}.`);
@@ -233,7 +233,7 @@ export function registerService (module, service) {
 
 export function registerFactory (module, factory) {
 	var parser = new Parser(factory);
-	var FactoryAnnotation = parser.getAnnotations(Factory)[0];
+	var FactoryAnnotation = parser.getAnnotation(Factory);
 
 	if (!FactoryAnnotation) {
 		throw new Error(`No Factory annotation on ${factory}.`);
@@ -242,7 +242,33 @@ export function registerFactory (module, factory) {
 	resolveModule(module).factory(FactoryAnnotation.name, getCtorForFunctionInjection(factory));
 }
 
+export function configModule (module, config) {
+	var parser = new Parser(config);
+	var ConfigAnnotation = parser.getAnnotation(Config);
+
+	if (!ConfigAnnotation) {
+		throw new Error(`No Config annotation on ${config}.`);
+	}
+
+	resolveModule(module).config(getCtorForFunctionInjection(config));
+}
+
 function registerOne (module, controller) {
+	// controller is whole module
+	if (angular.isObject(controller)) {
+		// get all exports from module
+		var moduleKeys = Object.getOwnPropertyNames(controller);
+
+		for (var key of moduleKeys) {
+			if (key !== '__esModule') {
+				registerOne(module, controller[key]);
+			}
+		}
+
+		return;
+	}
+
+	// parse one controller
 	var parser = new Parser(controller);
 
 	if (parser.hasAnnotation(Directive)) {
@@ -260,8 +286,11 @@ function registerOne (module, controller) {
 	else if (parser.hasAnnotation(Filter)) {
 		registerFilter(module, controller);
 	}
+	else if (parser.hasAnnotation(Config)) {
+		configModule(module, controller);
+	}
 	else {
-		throw new Error('Missing annotation.');
+		throw new Error('Missing one of supported annotations.');
 	}
 }
 

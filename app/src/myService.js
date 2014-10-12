@@ -10,8 +10,6 @@ export default class MyService {
 			name: 'Ondrej',
 			age: 26
 		};
-
-		console.log(!!this.$timeout);
 	}
 
 	get data () {

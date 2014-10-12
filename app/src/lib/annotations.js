@@ -18,13 +18,23 @@ export class Controller {
 }
 
 export class Service {
-	constructor (name, type) {
+	constructor (name) {
 		this.name = name;
 	}
 }
 
 export class Factory {
-	constructor (name, type) {
+	constructor (name) {
+		this.name = name;
+	}
+}
+
+export class Config {
+	constructor () {}
+}
+
+export class Provider {
+	constructor (name) {
 		this.name = name;
 	}
 }
@@ -75,6 +85,16 @@ export class Parser {
 		var annotations = this.getAllAnnotations();
 
 		return annotations.filter(annotation => annotation instanceof annotationConstructor);
+	}
+
+	getAnnotation (annotationConstructor) {
+		var annotations = this.getAnnotations(annotationConstructor);
+
+		if (annotations.length) {
+			return annotations[0];
+		}
+
+		return null;
 	}
 
 	hasAnnotation (annotationConstructor) {

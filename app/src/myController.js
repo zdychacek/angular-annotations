@@ -1,9 +1,10 @@
-import { Controller, Scope, Inject } from './lib/annotations';
+import { Controller, Scope, Config, Inject, InjectAsProperty } from './lib/annotations';
 import BaseController from './baseController';
 
 @Inject('MyFactory')
+@InjectAsProperty('$timeout')
 @Controller('MyController')
-export default class MyController extends BaseController {
+export class MyController extends BaseController {
 	constructor (MyService, $timeout, MyFactory) {
 		this.dataSource = MyService;
 		this.$timeout = $timeout;
@@ -17,4 +18,10 @@ export default class MyController extends BaseController {
 	getData () {
 		this.$timeout(() => this.$scope.data = this.dataSource.getInfo(), 500);
 	}
+}
+
+@Inject('$httpProvider')
+@Config
+export function config ($httpProvider) {
+	//$httpProvider.useApplyAsync(true);
 }
