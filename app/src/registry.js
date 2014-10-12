@@ -18,8 +18,20 @@ function resolveModule (module) {
 	}
 }
 
+function isUpperCase (char) {
+	return char.toUpperCase() === char;
+}
+
+function isClass (clsOrFunction) {
+	if (clsOrFunction.name) {
+		return isUpperCase(clsOrFunction.name.charAt(0));
+	}
+
+	return Object.keys(clsOrFunction.prototype).length > 0;
+}
+
 function getOverwrittenConstructor (controller) {
-	var constructor = getPreparedConstructor(controller);
+	var constructor = getInjectedConstructor(controller);
 	var diFunction = constructor[constructor.length - 1];
 	var overwrittenConstructor = constructor;
 
@@ -30,19 +42,11 @@ function getOverwrittenConstructor (controller) {
 	return overwrittenConstructor;
 }
 
-/**
- * Prepares a class constructor for angular depency injection.
- *
- * Searches for annotations and creates a decorator which creates the instance
- * and injects all necesarry deps.
- *
- * @param  {Function} controller
- * @return {Function}
- */
-export function getPreparedConstructor (controller) {
+export function getInjectedConstructor (controller) {
 	var parser = new Parser(controller);
 	var annotations = parser.getAnnotations(Inject).reverse();
 	var $inject = [];
+	var isFn = !isClass(controller);
 
 	for (var annotation of annotations) {
 		$inject = $inject.concat(annotation.deps);
@@ -50,41 +54,60 @@ export function getPreparedConstructor (controller) {
 
 	var injectsViaInjectCount = $inject.length;
 	var injectAsProperty = parser.getAnnotations(InjectAsProperty);
+
+	if (injectAsProperty.length && isFn) {
+		throw new Error('Cannot annotate function with @InjectAsProperty.');
+	}
+
 	var propertyMap = new Map();
+	
+	// if is class, process @InjectAsProperty annotations
+	if (!isFn) {	
+		for (var annotation of injectAsProperty) {
+			annotation.deps.forEach(depName => {
+				$inject.push(depName);
+				propertyMap.set(depName, $inject.length - 1);
+			});
+		}
+	}
 
 	if (!injectAsProperty.length && !annotations.length) {
 		return false;
 	}
 
-	for (var annotation of injectAsProperty) {
-		annotation.deps.forEach(depName => {
-			$inject.push(depName);
-			propertyMap.set(depName, $inject.length - 1);
-		});
-	}
-
 	var constructor = $inject;
 
 	constructor.push((...deps) => {
-		var proto = controller.prototype;
 		var scopes = deps.filter(dep => '$$watchers' in dep && dep.$parent != null);
+		var proto = controller.prototype;
 
 		if (scopes.length > 1) {
 			throw new Error(`You have injected $scope multiple times (count: ${scopes.length}) into '${controller}'.`);
 		}
 
-		// @InjectAsProperty
-		for (var [ name, position ] of propertyMap.entries()) {
-			proto[name] = deps[position];
+		// if is class
+		if (!isFn) {
+			// @InjectAsProperty
+			for (var [ name, position ] of propertyMap.entries()) {
+				proto[name] = deps[position];
+			}
 		}
 
 		// @Inject to constructor
 		var args = deps.slice(0, injectsViaInjectCount);
-		var ctrl = new controller(...args);
+		var ctrl = null;
+
+		if (isFn) {
+			ctrl = controller(...args);
+		}
+		else {
+			ctrl = new controller(...args);
+		}
+
 		var scope = scopes[0];
 
 		// @Scope methods
-		if (scope) {
+		if (!isFn && scope) {
 			for (var methodName in proto) {
 				var method = proto[methodName];
 
@@ -97,6 +120,11 @@ export function getPreparedConstructor (controller) {
 						}
 					}
 				}
+			}
+
+			// register destructor method if exists - scope.on('destroy')
+			if (angular.isFunction(proto.destructor)) {
+				scope.$on('$destroy', proto.destructor.bind(ctrl));
 			}
 		}
 
@@ -121,7 +149,7 @@ export function registerFilter (module, filter) {
 		throw new Error(`No Filter annotations on class ${filter}.`);
 	}
 
-	var constructor = getPreparedConstructor(filter);
+	var constructor = getInjectedConstructor(filter);
 
 	if (!constructor) {
 		constructor = function () {
@@ -146,12 +174,6 @@ export function registerFilter (module, filter) {
 	}
 }
 
-/**
- * Registers a new angular directive.
- *
- * @param  module created with angular.module()
- * @param  {Function} controller
- */
 export function registerDirective (module, controller) {
 	var parser = new Parser(controller);
 	var annotations = parser.getAnnotations(Directive);
@@ -161,7 +183,7 @@ export function registerDirective (module, controller) {
 		throw new Error(`No Directive annotation on class ${controller}.`);
 	}
 
-	var constructor = getPreparedConstructor(controller);
+	var constructor = getInjectedConstructor(controller);
 
 	if (!constructor) constructor = controller;
 
@@ -229,5 +251,5 @@ export function registerService (module, service) {
 		throw new Error(`No Service annotation on class ${service}.`);
 	}
 
-	resolveModule(module)[ServiceAnnotation.type](ServiceAnnotation.name, getOverwrittenConstructor(service));
+	resolveModule(module).service(ServiceAnnotation.name, getOverwrittenConstructor(service));
 }

@@ -20,12 +20,6 @@ export class Controller {
 export class Service {
 	constructor (name, type = 'factory') {
 		this.name = name;
-
-		if (!['factory', 'service', 'provider', 'value', 'constant'].indexOf(type) < 0) {
-			throw new Error(`Bad Service annotation type ${type}.`);
-		}
-
-		this.type = type;
 	}
 }
 

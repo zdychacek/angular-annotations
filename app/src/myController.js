@@ -15,3 +15,5 @@ export default class MyController extends BaseController {
 		this.$timeout(() => this.$scope.data = this.dataSource.getInfo(), 500);
 	}
 }
+
+console.log('huhu');
