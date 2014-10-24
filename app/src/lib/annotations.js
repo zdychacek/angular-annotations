@@ -103,7 +103,7 @@ export class Parser {
 
 	extractAnnotations (constructor) {
 		var annotations = constructor.annotations || [];
-		var parent = Object.getPrototypeOf(constructor);
+		var parent = constructor.__proto__;
 
 		if (angular.isFunction(parent)) {
 			annotations = annotations.concat(this.extractAnnotations(parent));

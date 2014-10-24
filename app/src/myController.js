@@ -16,7 +16,9 @@ export class MyController extends BaseController {
 
 	@Scope
 	getData () {
-		this.$timeout(() => this.$scope.data = this.dataSource.getInfo(), 500);
+		this.$timeout(() => {
+			this.$scope.data = this.dataSource.getInfo();
+		}, 500);
 	}
 }
 

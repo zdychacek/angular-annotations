@@ -16,6 +16,10 @@ export default class MyDirective {
 		this.hihi = 'huhu';
 	}
 
+	destructor () {
+		console.log('destructor called...');
+	}
+
 	link (scope, element, attributes, parentMyDirective) {
 		this.$scope.text = attributes.text || 'none';
 
